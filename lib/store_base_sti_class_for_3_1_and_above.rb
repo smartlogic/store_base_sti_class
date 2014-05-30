@@ -7,10 +7,10 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
       class_attribute :store_base_sti_class
       self.store_base_sti_class = true
     end
-    
+
     module Associations
       class Association
-        
+
         def creation_attributes
           attributes = {}
 
@@ -21,18 +21,18 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
               # START PATCH
               # original:
               # attributes[reflection.type] = owner.class.base_class.name
-              
-              attributes[reflection.type] = ActiveRecord::Base.store_base_sti_class ? owner.class.base_class.name : owner.class.name
-              
+
+              attributes[reflection.type] = owner.class.store_base_sti_class ? owner.class.base_class.name : owner.class.name
+
               # END PATCH
             end
           end
 
           attributes
         end
-        
+
       end
-      
+
       class JoinDependency # :nodoc:
         class JoinAssociation < JoinPart # :nodoc:
           def join_to(relation)
@@ -70,17 +70,17 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
               constraint = build_constraint(reflection, table, key, foreign_table, foreign_key)
 
               conditions = self.conditions[i].dup
-              
+
               # START PATCH
               # original:
               # conditions << { reflection.type => foreign_klass.base_class.name } if reflection.type
-              
-              if ActiveRecord::Base.store_base_sti_class
+
+              if foreign_klass.store_base_sti_class
                 conditions << { reflection.type => foreign_klass.base_class.name } if reflection.type
               else
                 conditions << { reflection.type => ([foreign_klass] + foreign_klass.descendants).map(&:name) } if reflection.type
               end
-              
+
               # END PATCH
 
               unless conditions.empty?
@@ -95,10 +95,10 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
 
             relation
           end
-        end      
+        end
       end
-      
-      
+
+
       class BelongsToPolymorphicAssociation < BelongsToAssociation #:nodoc:
 
         private
@@ -107,7 +107,7 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
           super
           # START PATCH
           # original: owner[reflection.foreign_type] = record && record.class.base_class.name
-          unless ActiveRecord::Base.store_base_sti_class
+          unless record.class.store_base_sti_class
             owner[reflection.foreign_type] = record && record.class.sti_name
           else
             owner[reflection.foreign_type] = record && record.class.base_class.name
@@ -137,9 +137,9 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
                 klass.table_name => {
                   #START PATCH
                   #original: reflection.type => model.base_class.sti_name
-                  reflection.type => ActiveRecord::Base.store_base_sti_class ? model.base_class.sti_name : model.sti_name
+                  reflection.type => model.class.store_base_sti_class ? model.base_class.sti_name : model.sti_name
                   #END PATCH
-                  
+
                 }
               )
             end
@@ -147,7 +147,7 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
             scope
           end
         end
-        
+
         module ThroughAssociation
           def through_options
             through_options = {}
@@ -168,10 +168,10 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
           end
         end
       end
-      
+
       class AssociationScope
         def add_constraints(scope)
-          
+
           tables = construct_tables
 
           chain.each_with_index do |reflection, i|
@@ -194,7 +194,7 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
                 # START PATCH
                 # This line exists to support multiple versions of AR 3.1
                 # original in 3.1.3: key         = reflection.association_primary_key
-                
+
                 key = (reflection.method(:association_primary_key).arity == 0) ? reflection.association_primary_key : reflection.association_primary_key(klass)
                 # END PATCH
               else
@@ -215,13 +215,13 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
               if reflection.type
                 # START PATCH
                 # original: scope = scope.where(table[reflection.type].eq(owner.class.base_class.name))
-                
-                unless ActiveRecord::Base.store_base_sti_class
+
+                unless owner.class.store_base_sti_class
                   scope = scope.where(table[reflection.type].eq(owner.class.name))
                 else
                   scope = scope.where(table[reflection.type].eq(owner.class.base_class.name))
                 end
-                
+
                 # END PATCH
               end
 
@@ -239,15 +239,15 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
                 # START PATCH
                 # original: type = chain[i + 1].klass.base_class.name
                 #           constraint = constraint.and(table[reflection.type].eq(type))
-                
-                if ActiveRecord::Base.store_base_sti_class
+
+                if klass.store_base_sti_class
                   type = chain[i + 1].klass.base_class.name
                   constraint = constraint.and(table[reflection.type].eq(type))
                 else
                   klass = chain[i + 1].klass
                   constraint = constraint.and(table[reflection.type].in(([klass] + klass.descendants).map(&:name)))
                 end
-                
+
                 # END PATCH
               end
 
@@ -261,12 +261,12 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
 
           scope
         end
-        
+
       end
     end
     module Reflection
       class ThroughReflection < AssociationReflection
-    
+
         def conditions
           @conditions ||= begin
             conditions = source_reflection.conditions.map { |c| c.dup }
@@ -279,13 +279,13 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
             if options[:source_type]
               # START PATCH
               # original: through_conditions.first << { foreign_type => options[:source_type] }
-              
-              unless ActiveRecord::Base.store_base_sti_class
+
+              unless options[:source_type].constantize.store_base_sti_class
                 through_conditions.first << { foreign_type => ([options[:source_type].constantize] + options[:source_type].constantize.descendants).map(&:to_s) }
               else
                 through_conditions.first << { foreign_type => options[:source_type] }
               end
-              
+
               # END PATCH
             end
 
@@ -297,8 +297,8 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
           end
         end
       end
-    end    
-    
+    end
+
   end
 
 end
