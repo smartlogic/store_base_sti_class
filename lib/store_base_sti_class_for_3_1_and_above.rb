@@ -137,7 +137,7 @@ if ActiveRecord::VERSION::STRING =~ /^3\.(1|2)/
                 klass.table_name => {
                   #START PATCH
                   #original: reflection.type => model.base_class.sti_name
-                  reflection.type => model.class.store_base_sti_class ? model.base_class.sti_name : model.sti_name
+                  reflection.type => model.store_base_sti_class ? model.base_class.sti_name : model.sti_name
                   #END PATCH
 
                 }
